@@ -1,5 +1,6 @@
 from pathlib import Path
 from graphviz import Digraph
+import re
 
 prompt = input("Describe la red: ").lower()
 
@@ -27,8 +28,9 @@ def crear_carpeta_lab():
 
 OUTPUT_DIR = crear_carpeta_lab()
 
-vlans = {
-    10: {
+vlan_templates = [
+    {
+        "id": 10,
         "nombre": "ADMINISTRACION",
         "red": "192.168.10.0",
         "mascara": "255.255.255.0",
@@ -36,7 +38,8 @@ vlans = {
         "puerto": "f0/1",
         "descripcion": "PC-ADMINISTRACION",
     },
-    20: {
+    {
+        "id": 20,
         "nombre": "VENTAS",
         "red": "192.168.20.0",
         "mascara": "255.255.255.0",
@@ -44,7 +47,8 @@ vlans = {
         "puerto": "f0/2",
         "descripcion": "PC-VENTAS",
     },
-    30: {
+    {
+        "id": 30,
         "nombre": "SERVIDORES",
         "red": "192.168.30.0",
         "mascara": "255.255.255.0",
@@ -52,7 +56,8 @@ vlans = {
         "puerto": "f0/3",
         "descripcion": "SERVIDOR",
     },
-    40: {
+    {
+        "id": 40,
         "nombre": "INVITADOS",
         "red": "192.168.40.0",
         "mascara": "255.255.255.0",
@@ -60,7 +65,37 @@ vlans = {
         "puerto": "f0/4",
         "descripcion": "PC-INVITADOS",
     },
-}
+]
+
+
+def detectar_cantidad_vlans(texto):
+    coincidencia = re.search(r"(\d+)\s*vlans?", texto)
+
+    if coincidencia:
+        cantidad = int(coincidencia.group(1))
+        return max(1, min(cantidad, len(vlan_templates)))
+
+    if "vlan" in texto:
+        return len(vlan_templates)
+
+    return 1
+
+
+cantidad_vlans = detectar_cantidad_vlans(prompt)
+
+vlans = {}
+
+for template in vlan_templates[:cantidad_vlans]:
+    vlan_id = template["id"]
+
+    vlans[vlan_id] = {
+        "nombre": template["nombre"],
+        "red": template["red"],
+        "mascara": template["mascara"],
+        "gateway": template["gateway"],
+        "puerto": template["puerto"],
+        "descripcion": template["descripcion"],
+    }
 
 
 def guardar_config(nombre_archivo, lineas):
@@ -73,28 +108,23 @@ def generar_diagrama():
     red = Digraph("NetForge")
     red.attr(rankdir="LR")
 
-    # Nodos base
-    red.node("PC1", "PC1\nVLAN 10")
     red.node("SW1", "SW1-CORE")
     red.node("R1", "R1-CORE")
 
-    # Conexiones base
-    red.edge("PC1", "SW1", label="Fa0/1")
+    # Nodos de VLAN dinámicos
+    for vlan_id, datos in vlans.items():
+        nodo_id = f"VLAN{vlan_id}"
+        etiqueta = f"{datos['descripcion']}\nVLAN {vlan_id}"
+        red.node(nodo_id, etiqueta)
+        red.edge(nodo_id, "SW1", label=datos["puerto"].upper())
+
+    # Trunk hacia router
     red.edge("SW1", "R1", label="Gi0/1 trunk")
 
     # ISP opcional
     if usa_isp:
         red.node("ISP", "R-ISP")
         red.edge("R1", "ISP", label="Gi0/0\n10.0.0.0/30")
-
-    # VLANs extra representadas como PCs lógicos
-    red.node("PC2", "PC Ventas\nVLAN 20")
-    red.node("SRV", "Servidor\nVLAN 30")
-    red.node("PC4", "PC Invitados\nVLAN 40")
-
-    red.edge("PC2", "SW1", label="Fa0/2")
-    red.edge("SRV", "SW1", label="Fa0/3")
-    red.edge("PC4", "SW1", label="Fa0/4")
 
     ruta_salida = OUTPUT_DIR / "topologia"
     red.render(str(ruta_salida), format="png", cleanup=True)
@@ -121,7 +151,8 @@ sw1.append("! Puerto trunk hacia R1")
 sw1.append("interface g0/1")
 sw1.append(" description TRUNK-HACIA-R1-CORE")
 sw1.append(" switchport mode trunk")
-sw1.append(" switchport trunk allowed vlan 10,20,30,40")
+vlans_permitidas = ",".join(str(vlan_id) for vlan_id in vlans.keys())
+sw1.append(f" switchport trunk allowed vlan {vlans_permitidas}")
 sw1.append(" no shutdown")
 sw1.append("exit\n")
 
