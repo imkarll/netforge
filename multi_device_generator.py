@@ -114,8 +114,18 @@ def detectar_departamentos(texto):
     return []
 
 
+def detectar_red_base(texto):
+    coincidencia = re.search(r"red base\s+(\d{1,3}\.\d{1,3})\.\d{1,3}\.\d{1,3}", texto)
+
+    if coincidencia:
+        return coincidencia.group(1)
+
+    return "192.168"
+
+
 cantidad_vlans = detectar_cantidad_vlans(prompt)
 departamentos_detectados = detectar_departamentos(prompt)
+red_base = detectar_red_base(prompt)
 
 vlans = {}
 
@@ -127,14 +137,17 @@ for indice, template in enumerate(vlan_templates[:cantidad_vlans]):
     if indice < len(departamentos_detectados):
         nombre_vlan = departamentos_detectados[indice]
 
+    red_vlan = f"{red_base}.{vlan_id}.0"
+    gateway_vlan = f"{red_base}.{vlan_id}.1"
+
     vlans[vlan_id] = {
         "nombre": nombre_vlan,
-        "red": template["red"],
+        "red": red_vlan,
         "mascara": template["mascara"],
-        "gateway": template["gateway"],
+        "gateway": gateway_vlan,
         "puerto": template["puerto"],
         "descripcion": f"PC-{nombre_vlan}",
-    }
+}
 
 
 def guardar_config(nombre_archivo, lineas):
@@ -272,7 +285,7 @@ if usa_isp or usa_nat:
 
 if usa_nat:
     r1.append("! NAT Overload")
-    r1.append("access-list 1 permit 192.168.0.0 0.0.255.255")
+    r1.append(f"access-list 1 permit {red_base}.0.0 0.0.255.255")
     r1.append("ip nat inside source list 1 interface g0/0 overload\n")
 if bloquear_invitados_servidores and 40 in vlans and 30 in vlans:
     red_invitados = vlans[40]["red"]
@@ -297,7 +310,7 @@ if usa_ospf:
     r1.append("! OSPF")
     r1.append("router ospf 1")
     r1.append(" router-id 1.1.1.1")
-    r1.append(" network 192.168.0.0 0.0.255.255 area 0")
+    r1.append(f" network {red_base}.0.0 0.0.255.255 area 0")
     r1.append(" network 10.0.0.0 0.0.0.3 area 0")
 
     for vlan_id in vlans.keys():
@@ -330,7 +343,7 @@ if usa_isp:
     isp.append("exit\n")
 
     isp.append("! Ruta de retorno hacia redes internas")
-    isp.append("ip route 192.168.0.0 255.255.0.0 10.0.0.1\n")
+    isp.append(f"ip route {red_base}.0.0 255.255.0.0 10.0.0.1\n")
 
     if usa_ospf:
         isp.append("! OSPF en ISP")
