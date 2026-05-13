@@ -9,6 +9,13 @@ usa_ospf = "ospf" in prompt
 usa_dhcp = "dhcp" in prompt
 usa_isp = "isp" in prompt or "internet" in prompt
 
+bloquear_invitados_servidores = (
+    "bloquear invitados" in prompt
+    or "invitados no puede" in prompt
+    or "invitados no pueden" in prompt
+    or "bloquear vlan 40" in prompt
+)
+
 BASE_OUTPUT_DIR = Path("outputs")
 BASE_OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -136,6 +143,11 @@ def guardar_config(nombre_archivo, lineas):
     ruta.write_text(contenido, encoding="utf-8")
     print(f"Config guardada: {ruta}")
 
+def mascara_a_wildcard(mascara):
+    partes = mascara.split(".")
+    wildcard = [str(255 - int(parte)) for parte in partes]
+    return ".".join(wildcard)
+
 def generar_diagrama():
     red = Digraph("NetForge")
     red.attr(rankdir="LR")
@@ -262,6 +274,24 @@ if usa_nat:
     r1.append("! NAT Overload")
     r1.append("access-list 1 permit 192.168.0.0 0.0.255.255")
     r1.append("ip nat inside source list 1 interface g0/0 overload\n")
+if bloquear_invitados_servidores and 40 in vlans and 30 in vlans:
+    red_invitados = vlans[40]["red"]
+    mascara_invitados = vlans[40]["mascara"]
+    wildcard_invitados = mascara_a_wildcard(mascara_invitados)
+
+    red_servidores = vlans[30]["red"]
+    mascara_servidores = vlans[30]["mascara"]
+    wildcard_servidores = mascara_a_wildcard(mascara_servidores)
+
+    r1.append("! ACL: Bloquear Invitados hacia Servidores")
+    r1.append("ip access-list extended BLOQUEAR_INVITADOS_SERVIDORES")
+    r1.append(f" deny ip {red_invitados} {wildcard_invitados} {red_servidores} {wildcard_servidores}")
+    r1.append(" permit ip any any")
+    r1.append("exit\n")
+
+    r1.append("interface g0/1.40")
+    r1.append(" ip access-group BLOQUEAR_INVITADOS_SERVIDORES in")
+    r1.append("exit\n")
 
 if usa_ospf:
     r1.append("! OSPF")
@@ -347,6 +377,8 @@ if usa_nat:
     guia.append("show ip nat translations")
 if usa_ospf:
     guia.append("show ip ospf neighbor")
+if bloquear_invitados_servidores:
+    guia.append("show access-lists")
 guia.append("")
 
 guia.append("Pruebas en PC1:")
@@ -354,6 +386,12 @@ guia.append("1. Desktop -> IP Configuration -> DHCP")
 guia.append("2. ping 192.168.10.1")
 if usa_isp:
     guia.append("3. ping 10.0.0.2")
+if bloquear_invitados_servidores:
+    guia.append("")
+    guia.append("Pruebas de ACL:")
+    guia.append("- Desde VLAN 40, ping hacia VLAN 30 debe fallar")
+    guia.append("- Desde VLAN 40, ping hacia 10.0.0.2 debe funcionar")
+    guia.append("- En R1: show access-lists")
 
 guardar_config("GUIA_PRUEBAS.txt", guia)
 
@@ -380,6 +418,8 @@ if usa_ospf:
     resumen.append("- OSPF")
 if usa_isp:
     resumen.append("- ISP / Internet")
+if bloquear_invitados_servidores:
+    resumen.append("- ACL: bloquear invitados hacia servidores")
 if not any([usa_dhcp, usa_nat, usa_ospf, usa_isp]):
     resumen.append("- Ninguno")
 
@@ -429,6 +469,9 @@ if usa_ospf:
     resumen.append("- Verificar OSPF con: show ip ospf neighbor")
 if usa_isp:
     resumen.append("- Hacer ping desde PC1 hacia 10.0.0.2")
+if bloquear_invitados_servidores:
+    resumen.append("- Verificar ACL en R1 con: show access-lists")
+    resumen.append("- Probar que VLAN 40 no pueda acceder a VLAN 30")
 
 guardar_config("RESUMEN_LAB.txt", resumen)
 
