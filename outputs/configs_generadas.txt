@@ -1,0 +1,33 @@
+=== CONFIGURACIÓN GENERADA ===
+
+! CONFIG VLANs
+
+vlan 10
+ name ADMINISTRACION
+
+vlan 20
+ name VENTAS
+
+vlan 30
+ name SERVIDORES
+
+vlan 40
+ name INVITADOS
+
+! CONFIG DHCP
+
+ip dhcp pool ADMIN
+ network 192.168.10.0 255.255.255.0
+ default-router 192.168.10.1
+ dns-server 8.8.8.8
+
+! CONFIG OSPF
+
+router ospf 1
+ router-id 1.1.1.1
+ network 10.0.0.0 0.0.0.255 area 0
+
+! CONFIG NAT
+
+access-list 1 permit 192.168.0.0 0.0.255.255
+ip nat inside source list 1 interface g0/0 overload

@@ -1,0 +1,94 @@
+enable
+configure terminal
+hostname R1-CORE
+
+! Interfaz física hacia switch
+interface g0/1
+ description TRUNK-HACIA-SW1-CORE
+ no shutdown
+exit
+
+! Subinterfaces Router-on-a-Stick
+interface g0/1.10
+ description GATEWAY-ADMINISTRACION
+ encapsulation dot1Q 10
+ ip address 192.168.10.1 255.255.255.0
+ ip nat inside
+exit
+
+interface g0/1.20
+ description GATEWAY-VENTAS
+ encapsulation dot1Q 20
+ ip address 192.168.20.1 255.255.255.0
+ ip nat inside
+exit
+
+interface g0/1.30
+ description GATEWAY-SERVIDORES
+ encapsulation dot1Q 30
+ ip address 192.168.30.1 255.255.255.0
+ ip nat inside
+exit
+
+interface g0/1.40
+ description GATEWAY-INVITADOS
+ encapsulation dot1Q 40
+ ip address 192.168.40.1 255.255.255.0
+ ip nat inside
+exit
+
+! Excluir gateways del DHCP
+ip dhcp excluded-address 192.168.10.1 192.168.10.20
+ip dhcp excluded-address 192.168.20.1 192.168.20.20
+ip dhcp excluded-address 192.168.30.1 192.168.30.20
+ip dhcp excluded-address 192.168.40.1 192.168.40.20
+
+! DHCP Pools
+ip dhcp pool ADMINISTRACION
+ network 192.168.10.0 255.255.255.0
+ default-router 192.168.10.1
+ dns-server 8.8.8.8
+
+ip dhcp pool VENTAS
+ network 192.168.20.0 255.255.255.0
+ default-router 192.168.20.1
+ dns-server 8.8.8.8
+
+ip dhcp pool SERVIDORES
+ network 192.168.30.0 255.255.255.0
+ default-router 192.168.30.1
+ dns-server 8.8.8.8
+
+ip dhcp pool INVITADOS
+ network 192.168.40.0 255.255.255.0
+ default-router 192.168.40.1
+ dns-server 8.8.8.8
+
+! Enlace hacia ISP / Internet
+interface g0/0
+ description HACIA-ISP
+ ip address 10.0.0.1 255.255.255.252
+ ip nat outside
+ no shutdown
+exit
+
+! Ruta por defecto hacia ISP
+ip route 0.0.0.0 0.0.0.0 10.0.0.2
+
+! NAT Overload
+access-list 1 permit 192.168.0.0 0.0.255.255
+ip nat inside source list 1 interface g0/0 overload
+
+! OSPF
+router ospf 1
+ router-id 1.1.1.1
+ network 192.168.0.0 0.0.255.255 area 0
+ network 10.0.0.0 0.0.0.3 area 0
+ passive-interface g0/1.10
+ passive-interface g0/1.20
+ passive-interface g0/1.30
+ passive-interface g0/1.40
+ no passive-interface g0/0
+
+end
+write memory
