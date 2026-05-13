@@ -81,20 +81,52 @@ def detectar_cantidad_vlans(texto):
     return 1
 
 
+def detectar_departamentos(texto):
+    patrones = [
+        r"vlans?:\s*([a-záéíóúñü,\s y]+)",
+        r"departamentos?:\s*([a-záéíóúñü,\s y]+)",
+        r"areas?:\s*([a-záéíóúñü,\s y]+)",
+    ]
+
+    for patron in patrones:
+        coincidencia = re.search(patron, texto)
+
+        if coincidencia:
+            lista_texto = coincidencia.group(1)
+
+            for palabra_corte in ["dhcp", "nat", "ospf", "isp", "internet"]:
+                lista_texto = lista_texto.split(palabra_corte)[0]
+
+            lista_texto = lista_texto.replace(" y ", ",")
+
+            nombres = [nombre.strip().upper() for nombre in lista_texto.split(",")]
+            nombres = [nombre for nombre in nombres if nombre]
+
+            return nombres
+
+    return []
+
+
 cantidad_vlans = detectar_cantidad_vlans(prompt)
+departamentos_detectados = detectar_departamentos(prompt)
 
 vlans = {}
 
-for template in vlan_templates[:cantidad_vlans]:
+for indice, template in enumerate(vlan_templates[:cantidad_vlans]):
     vlan_id = template["id"]
 
+    nombre_vlan = template["nombre"]
+
+    if indice < len(departamentos_detectados):
+        nombre_vlan = departamentos_detectados[indice]
+
     vlans[vlan_id] = {
-        "nombre": template["nombre"],
+        "nombre": nombre_vlan,
         "red": template["red"],
         "mascara": template["mascara"],
         "gateway": template["gateway"],
         "puerto": template["puerto"],
-        "descripcion": template["descripcion"],
+        "descripcion": f"PC-{nombre_vlan}",
     }
 
 
@@ -237,10 +269,10 @@ if usa_ospf:
     r1.append(" router-id 1.1.1.1")
     r1.append(" network 192.168.0.0 0.0.255.255 area 0")
     r1.append(" network 10.0.0.0 0.0.0.3 area 0")
-    r1.append(" passive-interface g0/1.10")
-    r1.append(" passive-interface g0/1.20")
-    r1.append(" passive-interface g0/1.30")
-    r1.append(" passive-interface g0/1.40")
+
+    for vlan_id in vlans.keys():
+        r1.append(f" passive-interface g0/1.{vlan_id}")
+
     r1.append(" no passive-interface g0/0")
     r1.append("")
 
