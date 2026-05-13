@@ -366,6 +366,9 @@ guia = []
 
 guia.append("=== NETFORGE: GUÍA DE PRUEBAS ===\n")
 
+guia.append("Red base del laboratorio:")
+guia.append(f"{red_base}.0.0/16\n")
+
 guia.append("Topología recomendada:")
 guia.append("PC1 Fa0 -> SW1 Fa0/1")
 guia.append("SW1 Gi0/1 -> R1 Gi0/1")
@@ -420,6 +423,10 @@ resumen.append("=== NETFORGE: RESUMEN DEL LAB ===\n")
 
 resumen.append("Enunciado original:")
 resumen.append(prompt)
+resumen.append("")
+
+resumen.append("Red base detectada:")
+resumen.append(f"- {red_base}.0.0/16")
 resumen.append("")
 
 resumen.append("Servicios detectados:")
