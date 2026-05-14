@@ -71,6 +71,31 @@ def generar_config_switch_l3(vlans_config):
         lineas.append("exit")
         lineas.append("")
 
+    lineas.append("! EtherChannels hacia switches de acceso")
+    etherchannels = [
+        {"switch": "SW1", "puertos": "fa0/1 - 2", "po": 1},
+        {"switch": "SW2", "puertos": "fa0/3 - 4", "po": 2},
+        {"switch": "SW3", "puertos": "fa0/5 - 6", "po": 3},
+    ]
+
+    for etherchannel in etherchannels:
+        lineas.append(f"interface range {etherchannel['puertos']}")
+        lineas.append(f" description ETHERCHANNEL-HACIA-{etherchannel['switch']}")
+        lineas.append(" switchport mode trunk")
+        lineas.append(" switchport trunk allowed vlan 1,10,20,30")
+        lineas.append(f" channel-group {etherchannel['po']} mode active")
+        lineas.append(" no shutdown")
+        lineas.append("exit")
+        lineas.append("")
+
+        lineas.append(f"interface port-channel {etherchannel['po']}")
+        lineas.append(f" description TRUNK-ETHERCHANNEL-HACIA-{etherchannel['switch']}")
+        lineas.append(" switchport mode trunk")
+        lineas.append(" switchport trunk allowed vlan 1,10,20,30")
+        lineas.append(" no shutdown")
+        lineas.append("exit")
+        lineas.append("")
+
     lineas.append("! Interfaces VLAN / Gateways")
     for vlan in vlans_config:
         lineas.append(f"interface vlan {vlan['id']}")
@@ -80,18 +105,18 @@ def generar_config_switch_l3(vlans_config):
         lineas.append("exit")
         lineas.append("")
 
-        lineas.append("! Enlace capa 3 hacia R1")
-        lineas.append("interface g0/1")
-        lineas.append(" description ENLACE-HACIA-R1")
-        lineas.append(" no switchport")
-        lineas.append(" ip address 192.168.255.2 255.255.255.252")
-        lineas.append(" no shutdown")
-        lineas.append("exit")
-        lineas.append("")
+    lineas.append("! Enlace capa 3 hacia R1")
+    lineas.append("interface g0/1")
+    lineas.append(" description ENLACE-HACIA-R1")
+    lineas.append(" no switchport")
+    lineas.append(" ip address 192.168.255.2 255.255.255.252")
+    lineas.append(" no shutdown")
+    lineas.append("exit")
+    lineas.append("")
 
-        lineas.append("! Ruta por defecto hacia R1")
-        lineas.append("ip route 0.0.0.0 0.0.0.0 192.168.255.1")
-        lineas.append("")
+    lineas.append("! Ruta por defecto hacia R1")
+    lineas.append("ip route 0.0.0.0 0.0.0.0 192.168.255.1")
+    lineas.append("")
 
     lineas.append("! OSPF preparado para publicar VLANs de la oficina central")
     lineas.append("router ospf 1")
