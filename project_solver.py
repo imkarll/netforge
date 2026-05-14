@@ -1,150 +1,212 @@
 from pathlib import Path
 
-from requirements_parser import detectar_requisitos, generar_resumen
-from vlsm_calculator import calcular_vlsm, generar_texto_resultado
+from project_loader import cargar_project_config, listar_project_configs
+from vlsm_from_config import generar_plan_vlsm_desde_config
 
 
-OUTPUT_DIR = Path("outputs")
-OUTPUT_DIR.mkdir(exist_ok=True)
+def elegir_project_config():
+    configs = listar_project_configs()
+
+    if not configs:
+        raise FileNotFoundError("No se encontraron project_config.json dentro de outputs/")
+
+    print("Configs encontradas:")
+
+    for indice, ruta in enumerate(configs, start=1):
+        print(f"{indice}. {ruta}")
+
+    while True:
+        respuesta = input("Elige una config para resolver [1]: ").strip()
+
+        if not respuesta:
+            indice = 1
+        else:
+            try:
+                indice = int(respuesta)
+            except ValueError:
+                print("Introduce un número válido.")
+                continue
+
+        if 1 <= indice <= len(configs):
+            return configs[indice - 1]
+
+        print("Opción no válida.")
 
 
-def construir_necesidades_vlsm(requisitos):
-    necesidades = {
-        "central": [],
-        "remota": [],
-        "internet": [],
-    }
-
-    for vlan in requisitos["oficina_central"]["vlans"]:
-        necesidades["central"].append(
-            {
-                "nombre": f"VLAN {vlan['id']} {vlan['nombre']}",
-                "hosts": vlan["hosts"] if isinstance(vlan["hosts"], int) else 6,
-            }
-        )
-
-    for vlan in requisitos["oficina_remota"]["vlans"]:
-        necesidades["remota"].append(
-            {
-                "nombre": f"VLAN {vlan['id']} {vlan['nombre']}",
-                "hosts": vlan["hosts"] if isinstance(vlan["hosts"], int) else 6,
-            }
-        )
-
-    routers_internet = requisitos["internet"]["routers"]
-
-    if routers_internet:
-        for indice in range(len(routers_internet)):
-            origen = routers_internet[indice]
-            destino = routers_internet[(indice + 1) % len(routers_internet)]
-
-            necesidades["internet"].append(
-                {
-                    "nombre": f"Enlace {origen}-{destino}",
-                    "hosts": 2,
-                }
-            )
-
-    necesidades["internet"].append({"nombre": "PC Internet", "hosts": 2})
-    necesidades["internet"].append({"nombre": "Servidor Web Publico", "hosts": 2})
-
-    return necesidades
-
-
-def generar_plan_maestro(texto_enunciado):
-    requisitos = detectar_requisitos(texto_enunciado)
-    resumen_requisitos = generar_resumen(requisitos)
-
-    necesidades = construir_necesidades_vlsm(requisitos)
-
-    plan_vlsm = []
-
-    if requisitos["oficina_central"]["red_base"] and necesidades["central"]:
-        central = calcular_vlsm(
-            requisitos["oficina_central"]["red_base"],
-            necesidades["central"],
-        )
-        plan_vlsm.append(generar_texto_resultado("OFICINA CENTRAL - VLSM", central))
-
-    if requisitos["oficina_remota"]["red_base"] and necesidades["remota"]:
-        remota = calcular_vlsm(
-            requisitos["oficina_remota"]["red_base"],
-            necesidades["remota"],
-        )
-        plan_vlsm.append(generar_texto_resultado("OFICINA REMOTA - VLSM", remota))
-
-    if requisitos["internet"]["red_base"] and necesidades["internet"]:
-        internet = calcular_vlsm(
-            requisitos["internet"]["red_base"],
-            necesidades["internet"],
-        )
-        plan_vlsm.append(generar_texto_resultado("INTERNET - VLSM", internet))
-
+def generar_resumen_general(config):
     lineas = []
 
-    lineas.append("=== NETFORGE: PLAN MAESTRO DEL PROYECTO ===\n")
-
-    lineas.append("## 1. Requisitos detectados\n")
-    lineas.append(resumen_requisitos)
-    lineas.append("\n")
-
-    lineas.append("## 2. Plan de direccionamiento VLSM\n")
-
-    if plan_vlsm:
-        lineas.append("\n".join(plan_vlsm))
-    else:
-        lineas.append("No se pudo generar plan VLSM porque faltan redes base o necesidades.")
-
-    lineas.append("\n")
-
-    lineas.append("## 3. Orden recomendado de implementación\n")
-    lineas.append("1. Calcular y validar direccionamiento VLSM")
-    lineas.append("2. Crear topología física en Packet Tracer")
-    lineas.append("3. Configurar routers de Internet I1-I6")
-    lineas.append("4. Configurar OSPF en la red de Internet")
-    lineas.append("5. Configurar oficina central")
-    lineas.append("6. Configurar oficina remota")
-    lineas.append("7. Configurar NAT/PAT en R1 y R2")
-    lineas.append("8. Configurar GRE VPN entre oficinas")
-    lineas.append("9. Configurar SSH, Syslog y backups TFTP")
-    lineas.append("10. Ejecutar checklist de pruebas")
+    lineas.append("=== NETFORGE: PLAN MAESTRO CONFIGURABLE ===")
+    lineas.append("")
+    lineas.append(f"Proyecto: {config['project_name']}")
+    lineas.append(f"Modo: {config['mode']}")
     lineas.append("")
 
-    lineas.append("## 4. Próximos módulos necesarios\n")
-    lineas.append("- Generador de configuración para routers de Internet")
-    lineas.append("- Generador de configuración para switch L3 central")
-    lineas.append("- Generador de configuración para switches de acceso")
-    lineas.append("- Generador de configuración para R1/R2 NAT/PAT")
-    lineas.append("- Generador de configuración GRE VPN")
-    lineas.append("- Generador de configuración SSH/Syslog/TFTP")
+    lineas.append("## 1. Configuración global")
+    lineas.append(f"- Política de gateway: {config['global']['gateway_policy']}")
+    lineas.append(f"- DNS: {', '.join(config['global']['dns_servers'])}")
+    lineas.append(f"- VLSM: {config['global']['use_vlsm']}")
+    lineas.append("")
+
+    internet = config["internet"]
+
+    lineas.append("## 2. Internet / ISP")
+    lineas.append(f"- Activado: {internet['enabled']}")
+
+    if internet["enabled"]:
+        lineas.append(f"- Routers: {', '.join(internet['routers'])}")
+        lineas.append(f"- Red base: {internet['base_network']}")
+        lineas.append(f"- Topología: {internet['topology']}")
+        lineas.append(f"- Routing: {internet['routing_protocol']}")
+
+        if internet["edge_connections"]:
+            lineas.append("- Conexiones edge:")
+
+            for conexion in internet["edge_connections"]:
+                lineas.append(
+                    f"  - {conexion['internet_router']} ↔ "
+                    f"{conexion['enterprise_router']} | "
+                    f"{conexion['network']}"
+                )
+
+    lineas.append("")
+
+    lineas.append("## 3. Oficinas")
+
+    for office in config["offices"]:
+        lineas.append("")
+        lineas.append(f"### Oficina: {office['name']}")
+        lineas.append(f"- Red base: {office['base_network']}")
+        lineas.append(f"- Routing inter-VLAN: {office['inter_vlan_routing']}")
+        lineas.append(f"- Router borde: {office['edge_router']}")
+
+        if office.get("distribution_switch"):
+            lineas.append(f"- Switch distribución/L3: {office['distribution_switch']}")
+
+        lineas.append(f"- Switches acceso: {', '.join(office['access_switches'])}")
+        lineas.append("")
+        lineas.append("VLANs:")
+
+        for vlan in office["vlans"]:
+            lineas.append(
+                f"- VLAN {vlan['id']} {vlan['name']} | "
+                f"Hosts: {vlan['hosts']} | Tipo: {vlan['type']}"
+            )
+
+        lineas.append("")
+        lineas.append("Features:")
+
+        for feature, enabled in office["features"].items():
+            lineas.append(f"- {feature}: {enabled}")
+
+        lineas.append("")
+        lineas.append("Switching:")
+        lineas.append(f"- VLAN nativa: {office['switching']['native_vlan']}")
+        lineas.append(
+            "- VLANs permitidas: "
+            + ", ".join(str(vlan) for vlan in office["switching"]["allowed_vlans"])
+        )
+        lineas.append(f"- EtherChannels: {len(office['switching']['etherchannels'])}")
+        lineas.append(f"- STP personalizado: {office['switching']['stp']['enabled']}")
+
+        lineas.append("")
+        lineas.append("Seguridad:")
+        port_security = office["security"]["port_security"]
+        lineas.append(f"- Port Security: {port_security['enabled']}")
+
+        if port_security["enabled"]:
+            lineas.append(f"  - Máximo MAC: {port_security['max_mac']}")
+            lineas.append(f"  - Violación: {port_security['violation']}")
+            lineas.append(f"  - Sticky: {port_security['sticky']}")
+
+    lineas.append("")
+
+    vpn = config["vpn"]
+
+    lineas.append("## 4. VPN")
+    lineas.append(f"- Activada: {vpn['enabled']}")
+
+    if vpn["enabled"]:
+        lineas.append(f"- Tipo: {vpn['type']}")
+        lineas.append(f"- Red base: {vpn['base_network']}")
+        lineas.append(f"- Túneles definidos: {len(vpn['tunnels'])}")
+
+    lineas.append("")
+
+    management = config["management"]
+
+    lineas.append("## 5. Gestión")
+    lineas.append(f"- SSH: {management['ssh']['enabled']}")
+
+    if management["ssh"]["enabled"]:
+        lineas.append(f"  - Dominio: {management['ssh']['domain']}")
+        lineas.append(f"  - Usuario: {management['ssh']['user']}")
+        lineas.append(f"  - RSA modulus: {management['ssh']['rsa_modulus']}")
+
+    lineas.append(f"- Syslog: {management['syslog']['enabled']}")
+    lineas.append(f"- TFTP backup: {management['tftp_backup']['enabled']}")
+    lineas.append(f"- NTP: {management['ntp']['enabled']}")
+    lineas.append("")
+
+    services = config["services"]
+
+    lineas.append("## 6. Servicios")
+    lineas.append(f"- Servidores definidos: {len(services['servers'])}")
+
+    for server in services["servers"]:
+        lineas.append(
+            f"  - {server['name']} | Tipo: {server['type']} | "
+            f"VLAN: {server['vlan']} | IP: {server['ip']} | "
+            f"Servicios: {', '.join(server['services'])}"
+        )
+
+    lineas.append("")
+
+    lineas.append("## 7. Orden recomendado de implementación")
+    lineas.append("1. Validar requisitos del proyecto")
+    lineas.append("2. Calcular direccionamiento VLSM")
+    lineas.append("3. Crear topología física/lógica en Packet Tracer")
+    lineas.append("4. Configurar VLANs y switching base")
+    lineas.append("5. Configurar routing inter-VLAN")
+    lineas.append("6. Configurar routing hacia routers de borde")
+    lineas.append("7. Configurar NAT/PAT si aplica")
+    lineas.append("8. Configurar routing dinámico si aplica")
+    lineas.append("9. Configurar seguridad: SSH, Port Security, ACLs")
+    lineas.append("10. Configurar servicios: DHCP, Syslog, TFTP, NTP")
+    lineas.append("11. Configurar VPN si aplica")
+    lineas.append("12. Ejecutar checklist de pruebas")
     lineas.append("")
 
     return "\n".join(lineas)
 
 
+def guardar_plan_maestro(config, contenido):
+    project_slug = config["project_name"].lower().replace(" ", "_")
+    project_dir = Path("outputs") / project_slug
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    ruta = project_dir / "01_plan_maestro.txt"
+    ruta.write_text(contenido, encoding="utf-8")
+
+    print(f"Plan maestro generado en: {ruta}")
+
+
+def resolver_proyecto(ruta_config):
+    config = cargar_project_config(ruta_config)
+
+    print("\nGenerando plan VLSM...")
+    generar_plan_vlsm_desde_config(ruta_config)
+
+    print("Generando plan maestro...")
+    contenido = generar_resumen_general(config)
+    guardar_plan_maestro(config, contenido)
+
+    print("\nProyecto resuelto correctamente.")
+
+
 def main():
-    print("Pega el enunciado completo. Cuando termines, escribe una línea con solo FIN:\n")
-
-    lineas = []
-
-    while True:
-        linea = input()
-
-        if linea.strip().upper() == "FIN":
-            break
-
-        lineas.append(linea)
-
-    texto_enunciado = "\n".join(lineas)
-
-    plan_maestro = generar_plan_maestro(texto_enunciado)
-
-    print("\n" + plan_maestro)
-
-    ruta = OUTPUT_DIR / "plan_maestro.txt"
-    ruta.write_text(plan_maestro, encoding="utf-8")
-
-    print(f"\nPlan maestro guardado en: {ruta}")
+    ruta_config = elegir_project_config()
+    resolver_proyecto(ruta_config)
 
 
 if __name__ == "__main__":
