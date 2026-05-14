@@ -9,6 +9,26 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 ROUTERS_INTERNET = ["I1", "I2", "I3", "I4", "I5", "I6"]
 
+CONEXIONES_EMPRESA = {
+    "I1": {
+        "vecino": "R1",
+        "interfaz": "g0/0",
+        "ip": "80.0.0.2",
+        "mascara": "255.255.255.0",
+        "red": "80.0.0.0",
+        "wildcard": "0.0.0.255",
+        "descripcion": "ENLACE-HACIA-R1",
+    },
+    "I4": {
+        "vecino": "R2",
+        "interfaz": "g0/0",
+        "ip": "90.0.0.1",
+        "mascara": "255.255.255.0",
+        "red": "90.0.0.0",
+        "wildcard": "0.0.0.255",
+        "descripcion": "ENLACE-HACIA-R2",
+    },
+}
 
 def crear_enlaces_anillo(routers):
     enlaces = []
@@ -99,8 +119,22 @@ def generar_config_router(router, enlaces):
         lineas.append("exit")
         lineas.append("")
 
+    if router in CONEXIONES_EMPRESA:
+        conexion = CONEXIONES_EMPRESA[router]
+
+        lineas.append(f"interface {conexion['interfaz']}")
+        lineas.append(f" description {conexion['descripcion']}")
+        lineas.append(f" ip address {conexion['ip']} {conexion['mascara']}")
+        lineas.append(" no shutdown")
+        lineas.append("exit")
+        lineas.append("")
+
     lineas.append("router ospf 1")
     lineas.append(f" router-id {router.replace('I', '')}.{router.replace('I', '')}.{router.replace('I', '')}.{router.replace('I', '')}")
+
+    if router in CONEXIONES_EMPRESA:
+        conexion = CONEXIONES_EMPRESA[router]
+        lineas.append(f" network {conexion['red']} {conexion['wildcard']} area 0")
 
     for enlace in enlaces_router:
         lineas.append(f" network {enlace['red']} {enlace['wildcard']} area 0")
@@ -142,6 +176,16 @@ def generar_resumen_enlaces(enlaces):
         lineas.append(f"  {enlace['origen']}: {enlace['ip_origen']}")
         lineas.append(f"  {enlace['destino']}: {enlace['ip_destino']}")
         lineas.append(f"  Mascara: {enlace['mascara']}")
+        lineas.append("")
+
+    lineas.append("CONEXIONES HACIA EMPRESA:")
+    lineas.append("")
+
+    for router, conexion in CONEXIONES_EMPRESA.items():
+        lineas.append(f"{router} -> {conexion['vecino']}")
+        lineas.append(f"  Interfaz {router}: {conexion['interfaz']}")
+        lineas.append(f"  IP {router}: {conexion['ip']} {conexion['mascara']}")
+        lineas.append(f"  Red: {conexion['red']}/24")
         lineas.append("")
 
     contenido = "\n".join(lineas)
