@@ -14,6 +14,8 @@ ROUTERS_BORDE = {
         "gateway_internet": "80.0.0.2",
         "vecino_internet": "I1",
         "inside_description": "HACIA-LAN-CENTRAL",
+        "red_lan": "192.168.1.0",
+        "wildcard_lan": "0.0.0.255",
     },
     "R2": {
         "descripcion": "Router borde oficina remota",
@@ -23,9 +25,10 @@ ROUTERS_BORDE = {
         "gateway_internet": "90.0.0.1",
         "vecino_internet": "I4",
         "inside_description": "HACIA-LAN-REMOTA",
+        "red_lan": "172.20.0.0",
+        "wildcard_lan": "0.0.0.255",
     },
 }
-
 
 def generar_config_router_borde(nombre_router, datos):
     lineas = []
@@ -48,11 +51,9 @@ def generar_config_router_borde(nombre_router, datos):
     lineas.append(f"ip route 0.0.0.0 0.0.0.0 {datos['gateway_internet']}")
     lineas.append("")
 
-    lineas.append("! NAT/PAT preparado")
-    lineas.append("! Las ACL de NAT se añadirán cuando estén calculadas las LAN internas")
-    lineas.append("! Ejemplo futuro:")
-    lineas.append("! access-list 1 permit <RED_INTERNA> <WILDCARD>")
-    lineas.append(f"! ip nat inside source list 1 interface {datos['interfaz_internet']} overload")
+    lineas.append("! NAT/PAT Overload")
+    lineas.append(f"access-list 1 permit {datos['red_lan']} {datos['wildcard_lan']}")
+    lineas.append(f"ip nat inside source list 1 interface {datos['interfaz_internet']} overload")
     lineas.append("")
 
     lineas.append("! Interfaz interna pendiente de definir")
@@ -78,6 +79,7 @@ def generar_resumen():
         lineas.append(f"  IP Internet: {datos['ip_internet']} {datos['mascara_internet']}")
         lineas.append(f"  Vecino Internet: {datos['vecino_internet']}")
         lineas.append(f"  Ruta por defecto hacia: {datos['gateway_internet']}")
+        lineas.append(f"  Red LAN para NAT: {datos['red_lan']} {datos['wildcard_lan']}")
         lineas.append("")
 
     return "\n".join(lineas)
