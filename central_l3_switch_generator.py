@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from vlsm_calculator import calcular_vlsm
+from common_config_blocks import generar_bloque_ssh
 
 
 OUTPUT_DIR = Path("outputs/central_l3")
@@ -59,6 +60,8 @@ def generar_config_switch_l3(vlans_config):
     lineas.append("configure terminal")
     lineas.append("hostname SW-DIST")
     lineas.append("")
+
+    lineas.extend(generar_bloque_ssh())
 
     lineas.append("! Habilitar routing capa 3")
     lineas.append("ip routing")

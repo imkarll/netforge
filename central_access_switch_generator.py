@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from common_config_blocks import generar_bloque_ssh
+
 
 OUTPUT_DIR = Path("outputs/central_access")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -48,6 +50,8 @@ def generar_config_switch_acceso(nombre_switch):
     lineas.append("logging trap warnings")
     lineas.append("service timestamps log datetime msec")
     lineas.append("")
+
+    lineas.extend(generar_bloque_ssh())
 
     lineas.append("! EtherChannel hacia SW-DIST")
     lineas.append("interface range fa0/23 - 24")

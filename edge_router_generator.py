@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from common_config_blocks import generar_bloque_ssh
+
 
 OUTPUT_DIR = Path("outputs/edge_routers")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -46,6 +48,8 @@ def generar_config_router_borde(nombre_router, datos):
     lineas.append(f"hostname {nombre_router}")
     lineas.append("")
 
+    lineas.extend(generar_bloque_ssh())
+
     lineas.append("! Enlace hacia Internet / ISP")
     lineas.append(f"interface {datos['interfaz_internet']}")
     lineas.append(f" description ENLACE-HACIA-{datos['vecino_internet']}")
@@ -82,7 +86,7 @@ def generar_config_router_borde(nombre_router, datos):
         lineas.append("! Interfaz interna pendiente de definir")
         lineas.append("! Se configurará al integrar la oficina correspondiente")
         lineas.append("")
-        
+
     lineas.append("end")
     lineas.append("write memory")
 
