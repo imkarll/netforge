@@ -1,0 +1,6 @@
+outputs/
+legacy_outputs/
+__pycache__/
+*.pyc
+.venv/
+venv/
