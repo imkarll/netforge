@@ -7,6 +7,15 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 SWITCHES_ACCESO = ["SW1", "SW2", "SW3"]
 
+IPS_ADMIN_SWITCHES = {
+    "SW1": "192.168.1.177",
+    "SW2": "192.168.1.178",
+    "SW3": "192.168.1.179",
+}
+
+MASCARA_ADMIN = "255.255.255.248"
+GATEWAY_ADMIN = "192.168.1.182"
+
 VLANS_CENTRAL = [
     {"id": 10, "nombre": "CPD"},
     {"id": 20, "nombre": "USUARIOS"},
@@ -103,14 +112,16 @@ def generar_config_switch_acceso(nombre_switch):
     lineas.append("exit")
     lineas.append("")
 
-    lineas.append("! SVI de administracion pendiente de direccionamiento")
-    lineas.append("! interface vlan 1")
-    lineas.append("!  ip address <IP_ADMIN_SWITCH> <MASCARA>")
-    lineas.append("!  no shutdown")
+    lineas.append("! SVI de administracion")
+    lineas.append("interface vlan 1")
+    lineas.append(" description ADMINISTRACION-SWITCH")
+    lineas.append(f" ip address {IPS_ADMIN_SWITCHES[nombre_switch]} {MASCARA_ADMIN}")
+    lineas.append(" no shutdown")
+    lineas.append("exit")
     lineas.append("")
 
-    lineas.append("! Gateway de administracion pendiente")
-    lineas.append("! ip default-gateway 192.168.1.182")
+    lineas.append("! Gateway de administracion")
+    lineas.append(f"ip default-gateway {GATEWAY_ADMIN}")
     lineas.append("")
 
     lineas.append("end")
@@ -151,6 +162,12 @@ def generar_resumen():
 
     lineas.append("Syslog:")
     lineas.append(f"- Servidor Syslog: {SYSLOG_SERVER_IP}")
+    lineas.append("")
+
+    lineas.append("Administracion:")
+    for switch in SWITCHES_ACCESO:
+        lineas.append(f"- {switch}: {IPS_ADMIN_SWITCHES[switch]} {MASCARA_ADMIN}")
+    lineas.append(f"- Gateway: {GATEWAY_ADMIN}")
     lineas.append("")
 
     return "\n".join(lineas)
