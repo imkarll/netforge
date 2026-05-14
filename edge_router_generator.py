@@ -16,6 +16,10 @@ ROUTERS_BORDE = {
         "inside_description": "HACIA-LAN-CENTRAL",
         "red_lan": "192.168.1.0",
         "wildcard_lan": "0.0.0.255",
+        "interfaz_lan": "g0/1",
+        "ip_lan": "192.168.255.1",
+        "mascara_lan": "255.255.255.252",
+        "vecino_lan": "SW-DIST",
     },
     "R2": {
         "descripcion": "Router borde oficina remota",
@@ -27,6 +31,10 @@ ROUTERS_BORDE = {
         "inside_description": "HACIA-LAN-REMOTA",
         "red_lan": "172.20.0.0",
         "wildcard_lan": "0.0.0.255",
+        "interfaz_lan": None,
+        "ip_lan": None,
+        "mascara_lan": None,
+        "vecino_lan": None,
     },
 }
 
@@ -51,15 +59,30 @@ def generar_config_router_borde(nombre_router, datos):
     lineas.append(f"ip route 0.0.0.0 0.0.0.0 {datos['gateway_internet']}")
     lineas.append("")
 
+    if nombre_router == "R1":
+        lineas.append("! Ruta hacia VLANs de oficina central")
+        lineas.append("ip route 192.168.1.0 255.255.255.0 192.168.255.2")
+        lineas.append("")
+
     lineas.append("! NAT/PAT Overload")
     lineas.append(f"access-list 1 permit {datos['red_lan']} {datos['wildcard_lan']}")
     lineas.append(f"ip nat inside source list 1 interface {datos['interfaz_internet']} overload")
     lineas.append("")
 
-    lineas.append("! Interfaz interna pendiente de definir")
-    lineas.append("! Se configurará al integrar la oficina correspondiente")
-    lineas.append("")
-
+    if datos["interfaz_lan"]:
+        lineas.append("! Enlace interno hacia LAN")
+        lineas.append(f"interface {datos['interfaz_lan']}")
+        lineas.append(f" description ENLACE-HACIA-{datos['vecino_lan']}")
+        lineas.append(f" ip address {datos['ip_lan']} {datos['mascara_lan']}")
+        lineas.append(" ip nat inside")
+        lineas.append(" no shutdown")
+        lineas.append("exit")
+        lineas.append("")
+    else:
+        lineas.append("! Interfaz interna pendiente de definir")
+        lineas.append("! Se configurará al integrar la oficina correspondiente")
+        lineas.append("")
+        
     lineas.append("end")
     lineas.append("write memory")
 

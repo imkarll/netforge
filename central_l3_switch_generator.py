@@ -80,17 +80,18 @@ def generar_config_switch_l3(vlans_config):
         lineas.append("exit")
         lineas.append("")
 
-    lineas.append("! Enlace capa 3 hacia R1 pendiente de definir")
-    lineas.append("! Ejemplo futuro:")
-    lineas.append("! interface g0/1")
-    lineas.append("!  no switchport")
-    lineas.append("!  ip address <IP_SW_DIST_R1> <MASCARA>")
-    lineas.append("!  no shutdown")
-    lineas.append("")
+        lineas.append("! Enlace capa 3 hacia R1")
+        lineas.append("interface g0/1")
+        lineas.append(" description ENLACE-HACIA-R1")
+        lineas.append(" no switchport")
+        lineas.append(" ip address 192.168.255.2 255.255.255.252")
+        lineas.append(" no shutdown")
+        lineas.append("exit")
+        lineas.append("")
 
-    lineas.append("! Ruta por defecto hacia R1 pendiente de definir")
-    lineas.append("! ip route 0.0.0.0 0.0.0.0 <IP_R1_LAN>")
-    lineas.append("")
+        lineas.append("! Ruta por defecto hacia R1")
+        lineas.append("ip route 0.0.0.0 0.0.0.0 192.168.255.1")
+        lineas.append("")
 
     lineas.append("! OSPF preparado para publicar VLANs de la oficina central")
     lineas.append("router ospf 1")
@@ -99,8 +100,9 @@ def generar_config_switch_l3(vlans_config):
     for vlan in vlans_config:
         lineas.append(f" network {vlan['red']} {vlan['wildcard']} area 0")
 
+    lineas.append(" network 192.168.255.0 0.0.0.3 area 0")
     lineas.append(" passive-interface default")
-    lineas.append("! no passive-interface <INTERFAZ-HACIA-R1>")
+    lineas.append(" no passive-interface g0/1")
     lineas.append("")
 
     lineas.append("end")
