@@ -37,13 +37,19 @@ def generar_config_edge_router(router_name, office, vlsm_plan, config):
     management_config = config.get("management", {})
     edge_connection = buscar_conexion_edge_para_router(config, router_name)
 
+    transit_router_ip = "192.168.255.1"
+    transit_lan_next_hop = "192.168.255.2"
+    transit_mask = "255.255.255.252"
+    transit_network = "192.168.255.0"
+    transit_wildcard = "0.0.0.3"
+
     lineas.append("enable")
     lineas.append("configure terminal")
     lineas.append(f"hostname {router_name}")
     lineas.append("")
 
     if management_config.get("ssh", {}).get("enabled"):
-        lineas.extend(generar_bloque_ssh())
+        lineas.extend(generar_bloque_ssh(management_config.get("ssh", {})))
 
     if edge_connection:
         lineas.append("! Interfaz hacia Internet / ISP")
@@ -70,19 +76,25 @@ def generar_config_edge_router(router_name, office, vlsm_plan, config):
         lineas.append("! ip route 0.0.0.0 0.0.0.0 <NEXT_HOP_ISP>")
         lineas.append("")
 
-    lineas.append("! Enlace interno hacia LAN pendiente de definir")
-    lineas.append("! interface g0/1")
-    lineas.append("!  description ENLACE-HACIA-LAN")
-    lineas.append("!  ip address <IP_TRANSITO_ROUTER> <MASCARA>")
-    lineas.append("!  ip nat inside")
-    lineas.append("!  no shutdown")
-    lineas.append("")
+        transit_router_ip = "192.168.255.1"
+        transit_lan_next_hop = "192.168.255.2"
+        transit_mask = "255.255.255.252"
+        transit_network = "192.168.255.0"
+        transit_wildcard = "0.0.0.3"
 
-    lineas.append("! Rutas hacia VLANs de la oficina")
-    lineas.append("! Ajusta el next-hop cuando definas el enlace interno hacia LAN")
+        lineas.append("! Enlace interno hacia LAN")
+        lineas.append("interface g0/1")
+        lineas.append(f" description ENLACE-HACIA-{office.get('distribution_switch') or 'LAN'}")
+        lineas.append(f" ip address {transit_router_ip} {transit_mask}")
+        lineas.append(" ip nat inside")
+        lineas.append(" no shutdown")
+        lineas.append("exit")
+        lineas.append("")
+
+        lineas.append("! Rutas hacia VLANs de la oficina")
     for item in vlsm_plan:
-        lineas.append(f"! ip route {item['network']} {item['mask']} <NEXT_HOP_LAN>")
-    lineas.append("")
+        lineas.append(f"ip route {item['network']} {item['mask']} {transit_lan_next_hop}")
+        lineas.append("")
 
     if office["features"].get("nat"):
         lineas.extend(generar_acl_nat(vlsm_plan))
@@ -100,11 +112,11 @@ def generar_config_edge_router(router_name, office, vlsm_plan, config):
         lineas.append("! OSPF preparado")
         lineas.append("router ospf 1")
         lineas.append(" router-id 1.1.1.1")
+        lineas.append(f" network {transit_network} {transit_wildcard} area 0")
 
         if edge_connection:
-            lineas.append(" network 0.0.0.0 255.255.255.255 area 0")
-        else:
-            lineas.append("! network <RED_TRANSITO_LAN> <WILDCARD> area 0")
+            edge_network = edge_connection["network"].split("/")[0]
+            lineas.append(f" network {edge_network} 0.0.0.255 area 0")
 
         lineas.append("")
 

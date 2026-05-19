@@ -45,7 +45,7 @@ def generar_config_access_switch(
     lineas.append("")
 
     if management_config.get("ssh", {}).get("enabled"):
-        lineas.extend(generar_bloque_ssh())
+        lineas.extend(generar_bloque_ssh(management_config.get("ssh", {})))
 
     lineas.append("! Crear VLANs")
     for item in vlsm_plan:
