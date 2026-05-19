@@ -23,6 +23,25 @@ def cargar_project_config(ruta_config):
 
 
 def validar_project_config(config):
+    if "topology" not in config:
+        config["topology"] = {
+            "transit_links": [],
+            "interface_defaults": {
+                "edge_wan_interface": "g0/0",
+                "edge_lan_interface": "g0/1",
+                "access_trunk_interface": "fa0/24",
+            },
+            "routing_defaults": {
+                "ospf_process_id": 1,
+                "ospf_area": 0,
+                "router_id_mode": "auto",
+            },
+            "nat_defaults": {
+                "acl_number": 1,
+                "type": "pat",
+            },
+        }
+
     campos_obligatorios = [
         "project_name",
         "mode",

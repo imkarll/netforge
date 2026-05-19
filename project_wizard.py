@@ -422,6 +422,62 @@ def crear_services_config():
         "servers": servers,
     }
 
+def crear_topology_config(offices):
+    print("\nTopología interna")
+
+    transit_links = []
+
+    if preguntar_si_no("¿Generar enlaces de tránsito entre router borde y switch L3?", "s"):
+        for office in offices:
+            if office["inter_vlan_routing"] != "layer3_switch":
+                continue
+
+            edge_router = office["edge_router"]
+            distribution_switch = office.get("distribution_switch") or "SW-DIST"
+
+            print(f"\nEnlace de tránsito para oficina {office['name']}")
+            print(f"{edge_router} ↔ {distribution_switch}")
+
+            network = preguntar_texto("Red de tránsito /30", "192.168.255.0/30")
+            from_interface = preguntar_texto(f"Interfaz en {edge_router}", "g0/1")
+            to_interface = preguntar_texto(f"Interfaz en {distribution_switch}", "g0/1")
+            from_ip = preguntar_texto(f"IP en {edge_router}", "192.168.255.1")
+            to_ip = preguntar_texto(f"IP en {distribution_switch}", "192.168.255.2")
+
+            transit_links.append(
+                {
+                    "name": f"{edge_router}-{distribution_switch}",
+                    "office": office["name"],
+                    "from_device": edge_router,
+                    "to_device": distribution_switch,
+                    "from_interface": from_interface,
+                    "to_interface": to_interface,
+                    "network": network,
+                    "from_ip": from_ip,
+                    "to_ip": to_ip,
+                    "mask": "255.255.255.252",
+                    "wildcard": "0.0.0.3",
+                    "description": f"ENLACE-{edge_router}-{distribution_switch}",
+                }
+            )
+
+    return {
+        "transit_links": transit_links,
+        "interface_defaults": {
+            "edge_wan_interface": "g0/0",
+            "edge_lan_interface": "g0/1",
+            "access_trunk_interface": "fa0/24",
+        },
+        "routing_defaults": {
+            "ospf_process_id": 1,
+            "ospf_area": 0,
+            "router_id_mode": "auto",
+        },
+        "nat_defaults": {
+            "acl_number": 1,
+            "type": "pat",
+        },
+    }
 
 def crear_project_config():
     print("=== NETFORGE PROJECT WIZARD ===")
@@ -448,6 +504,7 @@ def crear_project_config():
     vpn = crear_vpn_config()
     management = crear_management_config()
     services = crear_services_config()
+    topology = crear_topology_config(offices)
 
     return {
         "project_name": project_name,
@@ -458,6 +515,7 @@ def crear_project_config():
         "vpn": vpn,
         "management": management,
         "services": services,
+        "topology": topology,
     }
 
 
