@@ -5,6 +5,7 @@ from vlsm_from_config import generar_plan_vlsm_desde_config
 from generators.l3_switch_generator import generar_l3_switches_desde_config
 from generators.access_switch_generator import generar_access_switches_desde_config
 from generators.edge_router_generator import generar_edge_routers_desde_config
+from generators.internet_generator import generar_internet_desde_config
 
 
 def elegir_project_config():
@@ -206,6 +207,12 @@ def resolver_proyecto(ruta_config):
 
     project_slug = config["project_name"].lower().replace(" ", "_")
     project_dir = Path("outputs") / project_slug
+
+    print("Generando configs de Internet/ISP...")
+    archivos_internet = generar_internet_desde_config(config, project_dir)
+
+    for archivo in archivos_internet:
+        print(f"Config generada: {archivo}")
 
     print("Generando configs de switches L3...")
     archivos_l3 = generar_l3_switches_desde_config(config, project_dir)
