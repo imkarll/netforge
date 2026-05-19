@@ -28,7 +28,6 @@ def generar_acl_nat(vlsm_plan):
         )
 
     lineas.append("")
-
     return lineas
 
 
@@ -72,7 +71,6 @@ def generar_config_edge_router(router_name, office, vlsm_plan, config):
         lineas.append("")
 
     lineas.append("! Enlace interno hacia LAN pendiente de definir")
-    lineas.append("! Este router debe conectarse al switch L3 o al switch de acceso")
     lineas.append("! interface g0/1")
     lineas.append("!  description ENLACE-HACIA-LAN")
     lineas.append("!  ip address <IP_TRANSITO_ROUTER> <MASCARA>")
