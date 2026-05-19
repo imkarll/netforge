@@ -4,6 +4,7 @@ from project_loader import cargar_project_config, listar_project_configs
 from vlsm_from_config import generar_plan_vlsm_desde_config
 from generators.l3_switch_generator import generar_l3_switches_desde_config
 from generators.access_switch_generator import generar_access_switches_desde_config
+from generators.edge_router_generator import generar_edge_routers_desde_config
 
 
 def elegir_project_config():
@@ -218,8 +219,13 @@ def resolver_proyecto(ruta_config):
     for archivo in archivos_access:
         print(f"Config generada: {archivo}")
 
-    print("\nProyecto resuelto correctamente.")
+    print("Generando configs de routers de borde...")
+    archivos_edge = generar_edge_routers_desde_config(config, project_dir)
 
+    for archivo in archivos_edge:
+        print(f"Config generada: {archivo}")
+
+    print("\nProyecto resuelto correctamente.")
 
 def main():
     ruta_config = elegir_project_config()
